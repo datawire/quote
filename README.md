@@ -30,10 +30,10 @@ Pass environment variables with Docker:
 
 -----
 ## Environment Variables
-| Name | Description | Default | 
+| Name | Description | Default |
 | :---: | :---: | :---: |
 | PORT | What port the service should listen on | 8080 |
-| ENABLE_TLS | Whether to use TLS for HTTSP or use HTTP | false |
+| ENABLE_TLS | Whether to use TLS for HTTPS or use HTTP | false |
 | OPENAPI_PATH | What path to serve the OpenAPI document on | /.ambassador-internal/openapi-docs |
 | ZIPKIN_SERVER | The Zipkin service for reporting traces to | N/A |
 | ZIPKIN_PORT | The port for the Zipkin service | 9411 |
@@ -80,7 +80,7 @@ Pass environment variables with Docker:
     Ex: `curl -kv https://{IP_ADDR}/backend/debug/{path}`
 
 -----
-- `health`
+- `/health`
 
     **GET:** Returns a 200 OK when the service is functioning.
 
@@ -111,13 +111,13 @@ Pass environment variables with Docker:
 
     **GET:** returns a list of files available to be downloaded.
 
-    **POST:** Uploads a file to the service to be downloaded later. Overwrites existing files if provided with the same name as an existing file. Uses the path as the name for the file. 
+    **POST:** Uploads a file to the service to be downloaded later. Overwrites existing files if provided with the same name as an existing file. Uses the path as the name for the file.
 
     Ex: `curl -kv https://{IP_ADDR}/backend/files/`
 
     Ex: `curl -kv --form "file=@README.md" https://{IP_ADDR}/backend/files/`
 
-    > **Note:** The `FILE_PATH` environment varialbe is used to configure a custom path for storing files if using a persistent volume in Kubernetes. Otherwise it will default to storing files ephemerally inside the container.
+    > **Note:** The `FILE_PATH` environment variable is used to configure a custom path for storing files if using a persistent volume in Kubernetes. Otherwise it will default to storing files ephemerally inside the container.
 
 
     > **Note:** For successful file uploads it expects the file to be passed in a value called `file` exactly as shown in the example.
@@ -126,7 +126,7 @@ Pass environment variables with Docker:
 -----
 - `/files/*`
 
-    **GET:** returns a file of the provided name if it exists or a 404 if it cannot find the file. The container ships with a file `edgy.jepg` for testing. 
+    **GET:** returns a file of the provided name if it exists or a 404 if it cannot find the file. The container ships with a file `edgy.jpeg` for testing.
 
     Ex: `curl -kv https://{IP_ADDR}/backend/files/edgy.jpeg`
 
