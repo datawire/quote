@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,6 +17,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/google/uuid"
 	"io"
 	"io/ioutil"
 	"log"
@@ -403,7 +404,81 @@ func (s *Server) Sleep(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("503: Terminating\n"))
 	}
+}
 
+func (s *Server) Trace(w http.ResponseWriter, r *http.Request) {
+	log.Println("Tracing request initiated")
+
+	// Create a new request to forward
+	// Read the original body
+	bodyBytes, err := io.ReadAll(r.Body)
+	if err != nil {
+		log.Printf("Error reading body: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	// Restore the body for potential later use
+	r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+
+	// Create the forwarded request (replace TARGET_URL with your desired destination)
+	updatedUrl := strings.Replace(r.URL.Path, "/trace", "", 1)
+
+	tls := "https://"
+
+	if r.TLS == nil {
+		tls = "http://"
+	}
+
+	fullUrl := tls + r.Host + updatedUrl
+
+	log.Println("Sending request to " + fullUrl)
+
+	forwardReq, err := http.NewRequest(r.Method, fullUrl, bytes.NewBuffer(bodyBytes))
+	if err != nil {
+		log.Printf("Error creating forward request: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	// Copy all headers from original request
+	for name, values := range r.Header {
+		for _, value := range values {
+			forwardReq.Header.Add(name, value)
+		}
+	}
+
+	uuid, err := uuid.NewRandom()
+
+	if err != nil {
+		log.Println("Error generating UUID: ", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	forwardReq.Header.Add("x-client-trace-id", uuid.String())
+
+	// Send the forwarded request
+	client := &http.Client{}
+	resp, err := client.Do(forwardReq)
+	if err != nil {
+		log.Printf("Error forwarding request: %v", err)
+		w.WriteHeader(http.StatusBadGateway)
+		return
+	}
+	defer resp.Body.Close()
+
+	// Copy the response status and headers back to the original client
+	for name, values := range resp.Header {
+		for _, value := range values {
+			w.Header().Add(name, value)
+		}
+	}
+	w.WriteHeader(resp.StatusCode)
+
+	// Copy the response body back to the original client
+	if _, err := io.Copy(w, resp.Body); err != nil {
+		log.Printf("Error copying response body: %v", err)
+	}
 }
 
 func (S *Server) TestAuth(w http.ResponseWriter, r *http.Request) {
@@ -687,6 +762,7 @@ func (s *Server) ConfigureRouter() {
 	s.router.Get("/auth/*", s.TestAuth)
 	s.router.Get("/logout", s.Logout)
 	s.router.Get("/sleep/*", s.Sleep)
+	s.router.HandleFunc("/trace/*", s.Trace)
 
 	// These two endpoints can be enabled without a volume claim since we will serve a image that ships with the container
 	s.router.Get("/files/", s.ListFiles)
